@@ -13,10 +13,11 @@ done by examining highly-expressed genes in each cluster looking for known *mark
 specific cell types. **cellClassifier.py** is designed to automate this process.
 
 The program reads a list of genes from `genesfile` and compares them against
-the cell signatures contained in `dbfile` Fisher's exact test. See the
+the cell signatures contained in `dbfile` looking for a match between the gene list and the
+genes in each signature. See the
 [Database Format](#database-format) section for a description of the format of the database file.
 
-A signature matches if the P-value returned by the test is less than 0.05 (can 
+A signature matches if the P-value returned by Fisher's exact test is less than 0.05 (can 
 be changed with the -p option). The test uses the number of genes in the database 
 as the total number of genes, but this can be changed with -n. Cell types that 
 match are printed to standard output (or to the file specified with the -o option). 
