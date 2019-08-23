@@ -77,3 +77,6 @@ classifier for each set of genes.
 The output of each classifier will be written to a file called `cc.clustN.csv`, where N is the
 cluster number. For example, the classifications for the set of genes in the third cluster
 will be written to cc.clust3.csv. The `cc` prefix can be changed with the -o option.
+
+## Credits
+cellClassifier.py is (c) 2019, A. Riva, [ICBR Bioinformatics Core](https://biotech.ufl.edu/bioinformatics/), University of Florida. 
