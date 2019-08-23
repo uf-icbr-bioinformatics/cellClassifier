@@ -19,17 +19,17 @@ genes in each signature. See the
 
 A signature matches if the P-value returned by Fisher's exact test is less than 0.05 (can 
 be changed with the -p option). The test uses the number of genes in the database 
-as the total number of genes, but this can be changed with -n. Cell types that 
-match are printed to standard output (or to the file specified with the -o option). 
+as the total number of genes, but this can be changed with the -n option. Cell types that 
+match are printed to standard output, or to the file specified with the -o option. 
 
 The output consists of four columns: tissue, cell type, P-value, list of genes
 from input list matching the gene signature. 
 
 `genesfile` is assumed to contain one gene identifier per line, or to be a 
 tab-delimited file with identifiers in the first column. A different column can be 
-specified with the -c option or using the syntax filename:column.
+specified with the -c option or using the syntax `filename:column`.
 
-If -X is specified, the program switches to cellranger mode, suitable for parsing
+If -X is specified, the program switches to *cellranger mode*, which supports parsing
 differential expression files produced by cellranger. See the [Cellranger Support](#cellranger-support)
 section for details.
 
