@@ -7,8 +7,8 @@ Usage: cellClassifier.py [options] dbfile genesfile
 
 ## Introduction
 
-This program reads a list of genes from genesfile and compares them against
-the cell signatures contained in `dbfile' using Fisher's exact test. See the
+This program reads a list of genes from `genesfile` and compares them against
+the cell signatures contained in `dbfile` using Fisher's exact test. See the
 Database section for a description of the format of the database file.
 
 A signature matches if the P-value returned by the test is less than 0.05 (can 
@@ -19,7 +19,7 @@ match are printed to standard output (or to the file specified with the -o optio
 The output consists of four columns: tissue, cell type, P-value, list of genes
 from input list matching the gene signature. 
 
-`genesfile' is assumed to contain one gene identifier per line, or to be a 
+`genesfile` is assumed to contain one gene identifier per line, or to be a 
 tab-delimited file with identifiers in the first column. A different column can be 
 specified with the -c option or using the syntax filename:column.
 
