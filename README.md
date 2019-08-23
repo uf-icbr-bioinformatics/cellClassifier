@@ -62,3 +62,18 @@ Amniotic fluid  Amniotic fluid stem cell  4  CD44,ENG,NT5E,THY1
 Four prebuilt databases are provided in the `databases` directory. The source for this databases is the [CellMarker](http://bio-bigdata.hrbmu.edu.cn/CellMarker/index.jsp) website. If you use any of these databases in your work, please cite the CellMarker paper: 
 
 [CellMarker: a manually curated resource of cell markers in human and mouse](https://academic.oup.com/nar/advance-article/doi/10.1093/nar/gky900/5115823). Nucleic Acids Research. 2018. 
+
+## Cellranger support
+If `-X` is specified, the program assumes that the input is a 
+`differential_expression.csv` file produced by cellranger. The file is comma-delimited
+with two columns for gene identifier and gene name, followed by three columns for
+each cluster containing average expression, fold change, and P-value, respectively.
+
+In this mode, cellClassifier will first extract highly-expressed genes from each cluster
+i.e. those genes with a fold change higher than the value specified with -Xfc (2 by default)
+and a P-value smaller than the one specified with -Xp (0.05 by default). It will then create one
+classifier for each set of genes.
+
+The output of each classifier will be written to a file called `cc.clustN.csv`, where N is the
+cluster number. For example, the classifications for the set of genes in the third cluster
+will be written to cc.clust3.csv. The `cc` prefix can be changed with the -o option.
