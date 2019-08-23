@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import sys, csv
+import os.path
+import math
 from scipy.stats import fisher_exact
 
 # Utils
@@ -97,15 +99,17 @@ class Classifier(object):
         table = [[A, B], [C, D]]
         odds, pval = fisher_exact(table, alternative="greater")
         if pval < self.pval:
-            self.candidates.append([pval, dbrow[0], dbrow[1], len(common), ",".join(common)])
+            score = - math.log(pval, 10.0) * math.log(A, 10.0)
+            self.candidates.append([pval, score, dbrow[0], dbrow[1], A, ",".join(common)])
 
-    def writeResults(self):
+    def writeResults(self, sortby=0):
+        rev = (sortby == 1)
         if self.outfile:
             self.stream = open(self.outfile, "w")
         try:
-            self.candidates.sort(key=lambda a: a[0])
+            self.candidates.sort(key=lambda a: a[sortby], reverse=rev)
             for c in self.candidates:
-                self.stream.write("\t".join([c[1], c[2], str(c[0]), str(c[3]), c[4]]) + "\n")
+                self.stream.write("\t".join([c[2], c[3], str(c[0]), str(c[1]), str(c[4]), c[5]]) + "\n")
         finally:
             if self.outfile:
                 self.stream.close()
@@ -119,6 +123,7 @@ class Manager(object):
     classifiers = []
     totgenes = None
     pval = 0.05
+    sortby = 0                # 0=pval, 1=score
     Xpval = 0.05
     Xfc = 2
 
@@ -151,6 +156,8 @@ class Manager(object):
                 prev = ""
             elif a in ["-n", "-p", "-o", "-c", "-Xp", "-Xfc"]:
                 prev = a
+            elif a == "-s":
+                self.sortby = 1
             elif a == "-X":
                 self.mode = "cellranger"
             elif self.dbfile is None:
@@ -207,7 +214,7 @@ class Manager(object):
         with open(self.dbfile, "r") as f:
             c = csv.reader(f, delimiter='\t')
             l1 = c.next()
-            if not self.totgenes:
+            if self.totgenes is None:
                 if l1[0] == "# Genes:":
                     self.totgenes = int(l1[1])
                 else:
@@ -215,16 +222,16 @@ class Manager(object):
             for line in c:
                 C.classify(line, self.totgenes)
         # When done, print results
-        C.writeResults()
+        C.writeResults(self.sortby)
 
     def runX(self):
         self.readCellrangerGenes()
         with open(self.dbfile, "r") as f:
             cr = csv.reader(f, delimiter='\t')
             l1 = cr.next()
-            if not self.totgenes:
+            if self.totgenes is None:
                 if l1[0] == "# Genes:":
-                    ngenes = int(l1[1])
+                    self.totgenes = int(l1[1])
                 else:
                     raise "Error: malformed database."
             for line in cr:
@@ -232,7 +239,7 @@ class Manager(object):
                     c.classify(line, self.totgenes)
         # When done, print results
         for c in self.classifiers:
-            c.writeResults()
+            c.writeResults(self.sortby)
         
     def usage(self, what=None):
         sys.stdout.write("""cellClassifier.py - Classify cells based on highly expressed genes.
@@ -303,6 +310,7 @@ Options:
   -p P   | Set the P-value threshold for signature matching to P (default: {}).
   -c C   | Column containing gene names in input file (default: 1).
   -n N   | Total number of genes considered (default: number of genes in database).
+  -s     | Sort results by score rather than P-value.
   -X     | Enable cellranger mode. See -h cellranger.
   -Xp P  | Set P-value threshold for cellranger file to P (default: {}).
   -Xfc F | Set fold change threshold for cellranger file to F (default: {}).
@@ -317,32 +325,3 @@ if __name__ == "__main__":
     if M.parseArgs(sys.argv[1:]):
         M.run()
 
-
-# def findCellType(dbfile, genes):
-#     nmine = len(genes)
-#     with open(dbfile, "r") as f:
-#         c = csv.reader(f, delimiter='\t')
-#         l1 = c.next()
-#         if l1[0] == "# Genes:":
-#             totgenes = int(l1[1])
-#         else:
-#             raise "Error: malformed database."
-
-#         candidates = []
-#         for line in c:
-#             ng = int(line[2])
-#             cg = line[3].split(",")
-#             common = findIntersection(cg, genes)
-#             A = len(common)
-#             B = ng - A
-#             C = nmine - A
-#             D = totgenes - A - B - C
-#             table = [[A, B], [C, D]]
-#             odds, pval = fisher_exact(table, alternative="greater")
-#             if pval < 0.05:
-#                 candidates.append([pval, line[0], line[1], len(common), ",".join(common)])
-
-#         candidates.sort(key=lambda a: a[0])
-#         for c in candidates:
-#             sys.stdout.write("\t".join([c[1], c[2], str(c[0]), str(c[3]), c[4]]) + "\n")
-    
