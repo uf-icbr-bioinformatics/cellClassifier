@@ -59,4 +59,6 @@ For example, the following are the first two lines of a database file:
 Amniotic fluid  Amniotic fluid stem cell  4  CD44,ENG,NT5E,THY1
 ```
 
-Four prebuilt databases are provided in the `databases` directory. The source for this databases is the CellMarker|http://bio-bigdata.hrbmu.edu.cn/CellMarker/index.jsp website.
+Four prebuilt databases are provided in the `databases` directory. The source for this databases is the [CellMarker](http://bio-bigdata.hrbmu.edu.cn/CellMarker/index.jsp) website. If you use any of these databases in your work, please cite the CellMarker paper: 
+
+[CellMarker: a manually curated resource of cell markers in human and mouse](https://academic.oup.com/nar/advance-article/doi/10.1093/nar/gky900/5115823). Nucleic Acids Research. 2018. 
