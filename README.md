@@ -7,8 +7,13 @@ Usage: cellClassifier.py [options] dbfile genesfile
 
 ## Introduction
 
-This program reads a list of genes from `genesfile` and compares them against
-the cell signatures contained in `dbfile` using Fisher's exact test. See the
+A common problem in the interpretation of single-cell RNA-Seq experiments is how to assign
+a "cell type" to a cluster of cells identified by the analysis pipeline. This is typically
+done by examining highly-expressed genes in each cluster looking for known *markers* of
+specific cell types. **cellClassifier.py** is designed to automate this process.
+
+The program reads a list of genes from `genesfile` and compares them against
+the cell signatures contained in `dbfile` Fisher's exact test. See the
 [Database Format](#database-format) section for a description of the format of the database file.
 
 A signature matches if the P-value returned by the test is less than 0.05 (can 
