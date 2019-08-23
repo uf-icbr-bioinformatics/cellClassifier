@@ -39,3 +39,24 @@ Option   | Description
   -Xp P  | Set P-value threshold for cellranger file to P (default: 0.05).
   -Xfc F | Set fold change threshold for cellranger file to F (default: 2).
 
+## Database format
+The database file supplied as the first argument should be a
+tab-delimited file with the following format:
+
+- The first line should contain two fields, the first one being "# Genes:" and the second
+one containing the total number of genes listed in the database.
+
+- All successive lines should contain four fields:
+  1. Tissue
+  2. Cell type
+  3. Number of genes in cell type signature
+  4. Names of genes in signature, separated by a single comma.
+
+For example, the following are the first two lines of a database file:
+
+```
+# Genes:        11541
+Amniotic fluid  Amniotic fluid stem cell  4  CD44,ENG,NT5E,THY1
+```
+
+Four prebuilt databases are provided in the `databases` directory. The source for this databases is the CellMarker|http://bio-bigdata.hrbmu.edu.cn/CellMarker/index.jsp website.
