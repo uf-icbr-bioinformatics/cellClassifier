@@ -3,6 +3,8 @@
 import sys, csv
 from scipy.stats import fisher_exact
 
+# Utils
+
 def findIntersection(g1, g2):
     return [g for g in g1 if g in g2]
 
@@ -11,6 +13,48 @@ def readNclusters(filename):
     with open(filename, "r") as f:
         hdr = f.readline().split(",")
         return (len(hdr) - 2) / 3
+
+def safeInt(v):
+    try:
+        return int(v)
+    except ValueError:
+        sys.stderr.write("Error: the value `{}' should be an integer number.")
+        sys.exit(1)
+    
+def safeFloat(v):
+    try:
+        return float(v)
+    except ValueError:
+        sys.stderr.write("Error: the value `{}' should be a number.")
+        sys.exit(1)
+
+def safeFilename(v):
+    if os.path.isfile(v):
+        return v
+    else:
+        sys.stderr.write("Error: file `{}' does not exist or is not readable.")
+        sys.exit(1)
+
+def fileAndColumn(v):
+    p = v.rfind(":")
+    if p > 0:
+        try:
+            x = int(v[p+1:])
+            return v[:p], x - 1
+        except:
+            return v, 0
+    return v, 0
+
+def helpWanted(args):
+    h = False
+    for a in args:
+        if h:
+            return a
+        elif a in ["-h", "--help"]:
+            h = True
+        else:
+            h = False
+    return h
 
 class Classifier(object):
     """Class that stores a list of genes, to test them against the markers for different cell types."""
@@ -70,7 +114,7 @@ class Manager(object):
     mode = "normal"             # or "cellranger"
     dbfile = None
     filename = None
-    column = 0
+    column = None
     outfile = None
     classifiers = []
     totgenes = None
@@ -82,36 +126,40 @@ class Manager(object):
         self.classifiers = []
 
     def parseArgs(self, args):
-        if "-h" in args or "--help" in args:
-            return self.usage()
+        w = helpWanted(args)
+        if w:
+            return self.usage(w)
         prev = ""
         for a in args:
             if prev == "-p":
-                self.pval = float(a)
+                self.pval = safeFloat(a)
                 prev = ""
             elif prev == "-n":
-                self.totgenes = int(a)
+                self.totgenes = safeInt(a)
                 prev = ""
             elif prev == "-o":
                 self.outfile = a
                 prev = ""
             elif prev == "-c":
-                self.column = int(a) - 1
+                self.column = safeInt(a) - 1
                 prev = ""
             elif prev == "-Xp":
-                self.Xpval = float(a)
+                self.Xpval = safeFloat(a)
                 prev = ""
             elif prev == "-Xfc":
-                self.Xfc = float(a)
+                self.Xfc = safeFloat(a)
                 prev = ""
             elif a in ["-n", "-p", "-o", "-c", "-Xp", "-Xfc"]:
                 prev = a
             elif a == "-X":
                 self.mode = "cellranger"
             elif self.dbfile is None:
-                self.dbfile = a
+                self.dbfile = safeFilename(a)
             elif self.filename is None:
-                self.filename = a
+                f, col = fileAndColumn(a)
+                self.filename = safeFilename(f)
+                if not self.column:
+                    self.column = col
         if self.dbfile and self.filename:
             return True
         else:
@@ -186,16 +234,83 @@ class Manager(object):
         for c in self.classifiers:
             c.writeResults()
         
-    def usage(self):
-        sys.stdout.write("""cellClassifier.py - Classify cells based on high-expressed genes.
+    def usage(self, what=None):
+        sys.stdout.write("""cellClassifier.py - Classify cells based on highly expressed genes.
+""")
+        if what == "cellranger":
+            sys.stdout.write("""
+* CellRanger mode. In this mode, the program assumes that the input is a 
+differential_expression.csv file produced by cellranger. The file is comma-delimited
+with two columns for gene identifier and gene name, followed by three columns for
+each cluster.
 
-Usage: cellClassifier [options] dbfile genesfile
+In this mode, cellClassifier will first extract highly-expressed genes from each cluster
+i.e. those genes with a fold change higher than the value specified with -Xfc ({} by default)
+and a P-value smaller than the one specified with -Xp ({} by default). It will then create one
+classifier for each set of genes.
 
-This program reads a list of genes from `genesfile' and compares them against
-the cell signatures contained in `dbfile' using Fisher's exact test. Cell types
-that match are printed to standard output (or to a specified file).
+The output of each classifier will be written to a file called cc.clustN.csv, where N is the
+cluster number. For example, the classifications for the set of genes in the third cluster
+will be written to cc.clust3.csv. The `cc' prefix can be changed with the -o option.
+
+""".format(self.Xfc, self.Xpval))
+        elif what == "db":
+            sys.stdout.write("""
+* Database format. The database file supplied as the first argument should be a
+tab-delimited file with the following format:
+
+- The first line should contain two fields, the first one being "# Genes:" and the second
+one containing the total number of genes listed in the database.
+
+- All successive lines should contain four fields:
+  1. Tissue
+  2. Cell type
+  3. Number of genes in cell type signature
+  4. Names of genes in signature, separated by a single comma.
+
+            For example, the following are the first two lines of a database file:
+
+# Genes:        11541
+Amniotic fluid  Amniotic fluid stem cell  4  CD44,ENG,NT5E,THY1
 
 """)
+        else:
+            sys.stdout.write("""
+Usage: cellClassifier.py [options] dbfile genesfile
+
+This program reads a list of genes from `genesfile' and compares them against
+the cell signatures contained in `dbfile' using Fisher's exact test. Use -h db
+for a description of the format of the database file.
+
+A signature matches if the P-value returned by the test is less than 0.05 (can 
+be changed with the -p option). The test uses the number of genes in the database 
+as the total number of genes, but this can be changed with -n. Cell types that 
+match are printed to standard output (or to the file specified with the -o option). 
+
+The output consists of four columns: tissue, cell type, P-value, list of genes
+from input list matching the gene signature. 
+
+`genesfile' is assumed to contain one gene identifier per line, or to be a 
+tab-delimited file with identifiers in the first column. A different column can be 
+specified with the -c option or using the syntax filename:column.
+
+If -X is specified, the program switches to cellranger mode, suitable for parsing
+differential expression files produced by cellranger. Use -h cellranger for details.
+
+Options:
+
+  -o O   | Write output to file O (default: standard output).
+  -p P   | Set the P-value threshold for signature matching to P (default: {}).
+  -c C   | Column containing gene names in input file (default: 1).
+  -n N   | Total number of genes considered (default: number of genes in database).
+  -X     | Enable cellranger mode. See -h cellranger.
+  -Xp P  | Set P-value threshold for cellranger file to P (default: {}).
+  -Xfc F | Set fold change threshold for cellranger file to F (default: {}).
+
+""".format(self.pval, self.Xpval, self.Xfc))
+        sys.stdout.write("""(c) 2019, A. Riva, ICBR Bioinformatics Core, University of Florida.
+
+""")                 
         
 if __name__ == "__main__":
     M = Manager()
