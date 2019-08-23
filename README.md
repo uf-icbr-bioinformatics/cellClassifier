@@ -9,7 +9,7 @@ Usage: cellClassifier.py [options] dbfile genesfile
 
 This program reads a list of genes from `genesfile` and compares them against
 the cell signatures contained in `dbfile` using Fisher's exact test. See the
-[Database](#database-format) section for a description of the format of the database file.
+[Database Format](#database-format) section for a description of the format of the database file.
 
 A signature matches if the P-value returned by the test is less than 0.05 (can 
 be changed with the -p option). The test uses the number of genes in the database 
@@ -24,7 +24,7 @@ tab-delimited file with identifiers in the first column. A different column can 
 specified with the -c option or using the syntax filename:column.
 
 If -X is specified, the program switches to cellranger mode, suitable for parsing
-differential expression files produced by cellranger. See the Cellranger Support
+differential expression files produced by cellranger. See the [Cellranger Support](#cellranger-support)
 section for details.
 
 ## Options
