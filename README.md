@@ -41,7 +41,8 @@ Option   | Description
   -p P   | Set the P-value threshold for signature matching to P (default: 0.05).
   -c C   | Column containing gene names in input file (default: 1).
   -n N   | Total number of genes considered (default: number of genes in database).
-  -X     | Enable cellranger mode. See the Cellranger Support section.
+  -s     | Sort output by score rather than P-value (see Output section).
+  -X     | Enable cellranger mode. See the [Cellranger Support](#cellranger-support) section.
   -Xp P  | Set P-value threshold for cellranger file to P (default: 0.05).
   -Xfc F | Set fold change threshold for cellranger file to F (default: 2).
 
@@ -68,6 +69,21 @@ Amniotic fluid  Amniotic fluid stem cell  4  CD44,ENG,NT5E,THY1
 Four prebuilt databases are provided in the `databases` directory. The source for this databases is the [CellMarker](http://bio-bigdata.hrbmu.edu.cn/CellMarker/index.jsp) website. If you use any of these databases in your work, please cite the CellMarker paper: 
 
 [CellMarker: a manually curated resource of cell markers in human and mouse](https://academic.oup.com/nar/advance-article/doi/10.1093/nar/gky900/5115823). Nucleic Acids Research. 2018. 
+
+## Output
+For each entry in the signatures database, the program performs a Fisher exact test
+comparing the genes in the signature with the provided ones. If the test is successful,
+the entry is considered a candidate match. In addition to the P-value, the program
+computes a *match score* using the following formula:
+
+  `S = -log10(P-value) * log10(I)`
+
+where I is the number of genes in the intersection between the provided list and the
+genes in the signature. Higher values of the score indicate a better match. This score
+favors the entries for which the intersection is a large number of genes; therefore
+sorting based on this score (using the -s option) may provide a somewhat different 
+ordering compared to the default (based on the P-value).
+
 
 ## Cellranger support
 If `-X` is specified, the program assumes that the input is a 

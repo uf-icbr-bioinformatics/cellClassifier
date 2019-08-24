@@ -275,10 +275,26 @@ one containing the total number of genes listed in the database.
   3. Number of genes in cell type signature
   4. Names of genes in signature, separated by a single comma.
 
-            For example, the following are the first two lines of a database file:
+For example, the following are the first two lines of a database file:
 
 # Genes:        11541
 Amniotic fluid  Amniotic fluid stem cell  4  CD44,ENG,NT5E,THY1
+
+""")
+        elif what == "output":
+            sys.stdout.write("""
+For each entry in the signatures database, the program performs a Fisher exact test
+comparing the genes in the signature with the provided ones. If the test is successful,
+the entry is considered a candidate match. In addition to the P-value, the program
+computes a match score using the following formula:
+
+  S = -log10(P-value) * log10(I)
+
+where I is the number of genes in the intersection between the provided list and the
+genes in the signature. Higher values of the score indicate a better match. This score
+favors the entries for which the intersection is a large number of genes; therefore
+sorting based on this score (using the -s option) may provide a somewhat different 
+ordering compared to the default (based on the P-value).
 
 """)
         else:
@@ -286,16 +302,19 @@ Amniotic fluid  Amniotic fluid stem cell  4  CD44,ENG,NT5E,THY1
 Usage: cellClassifier.py [options] dbfile genesfile
 
 This program reads a list of genes from `genesfile' and compares them against
-the cell signatures contained in `dbfile' using Fisher's exact test. Use -h db
-for a description of the format of the database file.
+the cell signatures contained in `dbfile', looking for significant matches. It
+will return a list of the cell type signatures that best match the provided list
+with a P-value and a match score. Use `-h db' for a description of the format of 
+the database file, and `-h output' for a description of the program's output.
 
-A signature matches if the P-value returned by the test is less than 0.05 (can 
-be changed with the -p option). The test uses the number of genes in the database 
+A signature matches if the P-value returned by the enrichment test is less than 0.05 
+(this limit can be changed with the -p option). The test uses the number of genes in the database 
 as the total number of genes, but this can be changed with -n. Cell types that 
 match are printed to standard output (or to the file specified with the -o option). 
 
-The output consists of four columns: tissue, cell type, P-value, list of genes
-from input list matching the gene signature. 
+The output consists of five columns: tissue, cell type, P-value, score, list of genes
+from input list matching the gene signature. Use `-h output' for a detailed 
+description of the output.
 
 `genesfile' is assumed to contain one gene identifier per line, or to be a 
 tab-delimited file with identifiers in the first column. A different column can be 
