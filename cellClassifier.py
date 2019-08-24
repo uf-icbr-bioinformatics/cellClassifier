@@ -294,7 +294,17 @@ where I is the number of genes in the intersection between the provided list and
 genes in the signature. Higher values of the score indicate a better match. This score
 favors the entries for which the intersection is a large number of genes; therefore
 sorting based on this score (using the -s option) may provide a somewhat different 
-ordering compared to the default (based on the P-value).
+ordering compared to the default one based on the P-value.
+
+The output consists of a tab-delimited file with five columns: 
+
+* Tissue
+* Cell type
+* P-value
+* Score
+* List of genes from input list matching the gene signature. 
+
+Results are sorted in order of increasing P-value, or decreasing match score is `-s' is supplied.
 
 """)
         else:
@@ -311,10 +321,6 @@ A signature matches if the P-value returned by the enrichment test is less than 
 (this limit can be changed with the -p option). The test uses the number of genes in the database 
 as the total number of genes, but this can be changed with -n. Cell types that 
 match are printed to standard output (or to the file specified with the -o option). 
-
-The output consists of five columns: tissue, cell type, P-value, score, list of genes
-from input list matching the gene signature. Use `-h output' for a detailed 
-description of the output.
 
 `genesfile' is assumed to contain one gene identifier per line, or to be a 
 tab-delimited file with identifiers in the first column. A different column can be 

@@ -22,9 +22,6 @@ be changed with the -p option). The test uses the number of genes in the databas
 as the total number of genes, but this can be changed with the -n option. Cell types that 
 match are printed to standard output, or to the file specified with the -o option. 
 
-The output consists of four columns: tissue, cell type, P-value, list of genes
-from input list matching the gene signature. 
-
 `genesfile` is assumed to contain one gene identifier per line, or to be a 
 tab-delimited file with identifiers in the first column. A different column can be 
 specified with the -c option or using the syntax `filename:column`.
@@ -84,6 +81,14 @@ favors the entries for which the intersection is a large number of genes; theref
 sorting based on this score (using the -s option) may provide a somewhat different 
 ordering compared to the default (based on the P-value).
 
+The output consists of a tab-delimited file with five columns:
+* Tissue
+* Cell type
+* P-value
+* Match score
+* List of genes from input list matching the gene signature. 
+
+Results are sorted in order of increasing P-value, or decreasing match score is `-s' is supplied.
 
 ## Cellranger support
 If `-X` is specified, the program assumes that the input is a 
