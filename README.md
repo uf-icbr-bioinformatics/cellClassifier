@@ -20,7 +20,8 @@ genes in each signature. See the
 A signature matches if the P-value returned by Fisher's exact test is less than 0.05 (can 
 be changed with the -p option). The test uses the number of genes in the database 
 as the total number of genes, but this can be changed with the -n option. Cell types that 
-match are printed to standard output, or to the file specified with the -o option. 
+match are printed to standard output, or to the file specified with the -o option. See the 
+[Output](#output) section for a description of the output format.
 
 `genesfile` is assumed to contain one gene identifier per line, or to be a 
 tab-delimited file with identifiers in the first column. A different column can be 
@@ -38,7 +39,7 @@ Option   | Description
   -p P   | Set the P-value threshold for signature matching to P (default: 0.05).
   -c C   | Column containing gene names in input file (default: 1).
   -n N   | Total number of genes considered (default: number of genes in database).
-  -s     | Sort output by score rather than P-value (see Output section).
+  -s     | Sort output by score rather than P-value (see [Output](#output) section).
   -X     | Enable cellranger mode. See the [Cellranger Support](#cellranger-support) section.
   -Xp P  | Set P-value threshold for cellranger file to P (default: 0.05).
   -Xfc F | Set fold change threshold for cellranger file to F (default: 2).
@@ -63,7 +64,7 @@ For example, the following are the first two lines of a database file:
 Amniotic fluid  Amniotic fluid stem cell  4  CD44,ENG,NT5E,THY1
 ```
 
-Four prebuilt databases are provided in the `databases` directory. The source for this databases is the [CellMarker](http://bio-bigdata.hrbmu.edu.cn/CellMarker/index.jsp) website. If you use any of these databases in your work, please cite the CellMarker paper: 
+Four prebuilt databases are provided in the `databases` directory. The source for these databases is the [CellMarker](http://bio-bigdata.hrbmu.edu.cn/CellMarker/index.jsp) website. If you use any of these databases in your work, please cite the CellMarker paper: 
 
 [CellMarker: a manually curated resource of cell markers in human and mouse](https://academic.oup.com/nar/advance-article/doi/10.1093/nar/gky900/5115823). Nucleic Acids Research. 2018. 
 
@@ -88,10 +89,10 @@ The output consists of a tab-delimited file with five columns:
 * Match score
 * List of genes from input list matching the gene signature. 
 
-Results are sorted in order of increasing P-value, or decreasing match score is `-s' is supplied.
+Results are sorted in order of increasing P-value, or decreasing match score is -s is supplied.
 
 ## Cellranger support
-If `-X` is specified, the program assumes that the input is a 
+If -X is specified, the program assumes that the input is a 
 `differential_expression.csv` file produced by cellranger. The file is comma-delimited
 with two columns for gene identifier and gene name, followed by three columns for
 each cluster containing average expression, fold change, and P-value, respectively.
