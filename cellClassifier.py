@@ -77,6 +77,8 @@ class Classifier(object):
         with open(self.filename, "r") as f:
             c = csv.reader(f, delimiter='\t')
             for line in c:
+                if self.column >= len(line):
+                    continue
                 g = line[self.column]
                 if g not in self.genes:
                     self.genes.append(g)
