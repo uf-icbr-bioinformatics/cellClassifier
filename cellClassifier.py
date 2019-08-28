@@ -58,21 +58,61 @@ def helpWanted(args):
             h = False
     return h
 
+### Classes
+
+class DEG(object):
+    name = ""
+    pval = 1.0
+    log2fc = 0
+
+    def __init__(self, name, pval=1.0, log2fc=0):
+        self.name = name
+        self.pval = pval
+        self.log2fc = log2fc
+
+class GeneList(object):
+    names = None
+    genes = None
+    ngenes = 0
+    
+    def __init__(self):
+        self.names = set()
+        self.genes = []
+
+    def add(self, deg):
+        if not deg.name in self.names:
+            self.genes.append(deg)
+            self.names.add(deg.name)
+            self.ngenes += 1
+
+    def sortByPval(self):
+        self.genes.sort(key=lambda g: g.pval)
+
+    def sortByFC(self):
+        self.genes.sort(key=lambda g: g.log2fc, reverse=True)
+
+    def keepTop(self, n):
+        self.genes = self.genes[:n]
+        self.names = set([g.name for g in self.genes])
+        self.ngenes = len(self.genes)
+        
 class Classifier(object):
     """Class that stores a list of genes, to test them against the markers for different cell types."""
     filename = ""
     column = 0
-    genes = []
-    ngenes = 0
+    genes = None
     pval = 0.05
-    candidates = []
+    candidates = None
     outfile = None
     stream = sys.stdout
 
     def __init__(self):
-        self.genes = []
+        self.genes = GeneList()
         self.candidates = []
-        
+
+    def ngenes(self):
+        return self.genes.ngenes
+    
     def readGenesFromFile(self):
         with open(self.filename, "r") as f:
             c = csv.reader(f, delimiter='\t')
@@ -80,23 +120,19 @@ class Classifier(object):
                 if self.column >= len(line):
                     continue
                 g = line[self.column]
-                if g not in self.genes:
-                    self.genes.append(g)
-        self.ngenes = len(self.genes)
+                self.genes.add(DEG(g))
         return self.genes
 
     def addGene(self, gene):
-        if gene not in self.genes:
-            self.genes.append(gene)
-            self.ngenes += 1
+        self.genes.add(gene)
 
     def classify(self, dbrow, totgenes):
         ng = int(dbrow[2])
-        cg = dbrow[3].split(",")
-        common = findIntersection(cg, self.genes)
+        cg = set(dbrow[3].split(","))
+        common = cg.intersection(self.genes.names)
         A = len(common)
         B = ng - A
-        C = self.ngenes - A
+        C = self.ngenes() - A
         D = totgenes - A - B - C
         table = [[A, B], [C, D]]
         odds, pval = fisher_exact(table, alternative="greater")
@@ -110,12 +146,13 @@ class Classifier(object):
             self.stream = open(self.outfile, "w")
         try:
             self.candidates.sort(key=lambda a: a[sortby], reverse=rev)
+            self.stream.write("# Tissue\tCell type\tP-value\tScore\tN genes\tGenes\n")
             for c in self.candidates:
                 self.stream.write("\t".join([c[2], c[3], str(c[0]), str(c[1]), str(c[4]), c[5]]) + "\n")
         finally:
             if self.outfile:
                 self.stream.close()
-        
+
 class Manager(object):
     mode = "normal"             # or "cellranger"
     dbfile = None
@@ -128,7 +165,8 @@ class Manager(object):
     sortby = 0                # 0=pval, 1=score
     Xpval = 0.05
     Xfc = 2
-
+    Xtop = None
+    
     def __init__(self):
         self.classifiers = []
 
@@ -156,7 +194,10 @@ class Manager(object):
             elif prev == "-Xfc":
                 self.Xfc = safeFloat(a)
                 prev = ""
-            elif a in ["-n", "-p", "-o", "-c", "-Xp", "-Xfc"]:
+            elif prev == "-Xtop":
+                self.Xtop = safeInt(a)
+                prev = ""
+            elif a in ["-n", "-p", "-o", "-c", "-Xp", "-Xfc", "-Xtop"]:
                 prev = a
             elif a == "-s":
                 self.sortby = 1
@@ -203,9 +244,13 @@ class Manager(object):
                     fc = float(line[i*3 + 3])
                     pv = float(line[i*3 + 4])
                     if pv < self.Xpval and abs(fc) >= self.Xfc:
-                        self.classifiers[i].addGene(line[1])
+                        self.classifiers[i].addGene(DEG(line[1], pval=pv, log2fc=fc))
         for i in range(nclust):
-            sys.stderr.write("Cluster {} ({}): {} genes.\n".format(i+1, self.classifiers[i].outfile, self.classifiers[i].ngenes))
+            sys.stderr.write("Cluster {} ({}): {} genes.\n".format(i+1, self.classifiers[i].outfile, self.classifiers[i].ngenes()))
+        if self.Xtop:
+            sys.stderr.write("Keeping top {} genes for each cluster.\n".format(self.Xtop))
+            for cl in self.classifiers:
+                cl.genes.keepTop(self.Xtop)
                 
     def run(self):
         self.initialize()
