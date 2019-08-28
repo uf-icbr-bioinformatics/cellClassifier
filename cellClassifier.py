@@ -152,6 +152,7 @@ class Classifier(object):
         finally:
             if self.outfile:
                 self.stream.close()
+        return len(self.candidates)
 
 class Manager(object):
     mode = "normal"             # or "cellranger"
@@ -250,6 +251,7 @@ class Manager(object):
         if self.Xtop:
             sys.stderr.write("Keeping top {} genes for each cluster.\n".format(self.Xtop))
             for cl in self.classifiers:
+                cl.genes.sortByFC()
                 cl.genes.keepTop(self.Xtop)
                 
     def run(self):
@@ -286,7 +288,8 @@ class Manager(object):
                     c.classify(line, self.totgenes)
         # When done, print results
         for c in self.classifiers:
-            c.writeResults(self.sortby)
+            nc = c.writeResults(self.sortby)
+            sys.stderr.write("{}: {} candidate cell types\n".format(c.outfile, nc))
         
     def usage(self, what=None):
         sys.stdout.write("""cellClassifier.py - Classify cells based on highly expressed genes.
