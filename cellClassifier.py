@@ -20,21 +20,21 @@ def safeInt(v):
     try:
         return int(v)
     except ValueError:
-        sys.stderr.write("Error: the value `{}' should be an integer number.")
+        sys.stderr.write("Error: the value `{}' should be an integer number.\n".format(v))
         sys.exit(1)
     
 def safeFloat(v):
     try:
         return float(v)
     except ValueError:
-        sys.stderr.write("Error: the value `{}' should be a number.")
+        sys.stderr.write("Error: the value `{}' should be a number.\n".format(v))
         sys.exit(1)
 
 def safeFilename(v):
     if os.path.isfile(v):
         return v
     else:
-        sys.stderr.write("Error: file `{}' does not exist or is not readable.")
+        sys.stderr.write("Error: file `{}' does not exist or is not readable.\n".format(v))
         sys.exit(1)
 
 def fileAndColumn(v):
@@ -167,7 +167,11 @@ class Manager(object):
     Xpval = 0.05
     Xfc = 2
     Xtop = None
-    
+    Spct = 0
+    # Internal
+    _f = None                   # Stream for DB
+    db = None                   # Reader for DB
+
     def __init__(self):
         self.classifiers = []
 
@@ -189,21 +193,26 @@ class Manager(object):
             elif prev == "-c":
                 self.column = safeInt(a) - 1
                 prev = ""
-            elif prev == "-Xp":
+            elif prev in ["-Xp", "-Sp"]:
                 self.Xpval = safeFloat(a)
                 prev = ""
-            elif prev == "-Xfc":
+            elif prev in ["-Xfc", "-Sfc"]:
                 self.Xfc = safeFloat(a)
                 prev = ""
-            elif prev == "-Xtop":
+            elif prev in ["-Xtop", "-Stop"]:
                 self.Xtop = safeInt(a)
                 prev = ""
-            elif a in ["-n", "-p", "-o", "-c", "-Xp", "-Xfc", "-Xtop"]:
+            elif prev == "-Spct":
+                self.Spct = safeFloat(a) / 100.0
+                prev = ""
+            elif a in ["-n", "-p", "-o", "-c", "-Xp", "-Xfc", "-Xtop", "-Sp", "-Sfc", "-Stop", "-Spct"]:
                 prev = a
             elif a == "-s":
                 self.sortby = 1
             elif a == "-X":
                 self.mode = "cellranger"
+            elif a == "-S":
+                self.mode = "seurat"
             elif self.dbfile is None:
                 self.dbfile = safeFilename(a)
             elif self.filename is None:
@@ -234,6 +243,9 @@ class Manager(object):
                 c.pval = self.pval
                 c.outfile = "{}.clust{}.csv".format(self.outfile, i+1)
                 self.classifiers.append(c)
+        elif self.mode == "seurat":
+            if not self.outfile:
+                self.outfile = "cc"
 
     def readCellrangerGenes(self):
         nclust = len(self.classifiers)
@@ -253,50 +265,105 @@ class Manager(object):
             for cl in self.classifiers:
                 cl.genes.sortByFC()
                 cl.genes.keepTop(self.Xtop)
-                
+        
+    def readSeuratGenes(self):
+        current = ""
+        nclust = 0
+        conv = math.log(math.e, 2.0) # conversion factor from base e to base 2
+        with open(self.filename, "r") as f:
+            f.readline()        # skip header
+            c = csv.reader(f, delimiter='\t')
+            for line in c:
+                clust = line[6]
+                if clust != current:
+                    C = Classifier()
+                    C.outfile = "{}.clust{}.csv".format(self.outfile, nclust)
+                    nclust += 1
+                    self.classifiers.append(C)
+                    current = clust
+                gene = line[0]
+                fc = float(line[2]) * conv
+                pv = float(line[5])
+                pct1 = float(line[3])
+                pct2 = float(line[4])
+                if pv < self.Xpval and abs(fc) >= self.Xfc and pct1 >= self.Spct and pct2 >= self.Spct:
+                    C.addGene(DEG(gene, pval=pv, log2fc=fc))
+        for i in range(nclust):
+            sys.stderr.write("Cluster {} ({}): {} genes.\n".format(i+1, self.classifiers[i].outfile, self.classifiers[i].ngenes()))
+        if self.Xtop:
+            sys.stderr.write("Keeping top {} genes for each cluster.\n".format(self.Xtop))
+            for cl in self.classifiers:
+                cl.genes.sortByFC()
+                cl.genes.keepTop(self.Xtop)
+        
+    def openDB(self):
+        self._f = open(self.dbfile, "r")
+        self.db = csv.reader(self._f, delimiter='\t')
+        l1 = self.db.next()
+        if self.totgenes is None:
+            if l1[0] == "# Genes:":
+                self.totgenes = int(l1[1])
+            else:
+                raise "Error: malformed database."
+
+    def closeDB(self):
+        self._f.close()
+
     def run(self):
         self.initialize()
         if self.mode == "cellranger":
             return self.runX()
+        if self.mode == "seurat":
+            return self.runS()
+
+        # Default is normal mode
         C = self.classifiers[0]
         C.readGenesFromFile()
-        with open(self.dbfile, "r") as f:
-            c = csv.reader(f, delimiter='\t')
-            l1 = c.next()
-            if self.totgenes is None:
-                if l1[0] == "# Genes:":
-                    self.totgenes = int(l1[1])
-                else:
-                    raise "Error: malformed database."
-            for line in c:
+        try:
+            self.openDB()
+            for line in self.db:
                 C.classify(line, self.totgenes)
+        finally:
+            self.closeDB()
         # When done, print results
         C.writeResults(self.sortby)
 
     def runX(self):
         self.readCellrangerGenes()
-        with open(self.dbfile, "r") as f:
-            cr = csv.reader(f, delimiter='\t')
-            l1 = cr.next()
-            if self.totgenes is None:
-                if l1[0] == "# Genes:":
-                    self.totgenes = int(l1[1])
-                else:
-                    raise "Error: malformed database."
-            for line in cr:
+        try:
+            self.openDB()
+            for line in self.db:
                 for c in self.classifiers:
                     c.classify(line, self.totgenes)
+        finally:
+            self.closeDB()
+
+        # When done, print results
+        for c in self.classifiers:
+            nc = c.writeResults(self.sortby)
+            sys.stderr.write("{}: {} candidate cell types\n".format(c.outfile, nc))
+            
+    def runS(self):
+        self.readSeuratGenes()
+        try:
+            self.openDB()
+            for line in self.db:
+                for c in self.classifiers:
+                    c.classify(line, self.totgenes)
+        finally:
+            self.closeDB()
+
         # When done, print results
         for c in self.classifiers:
             nc = c.writeResults(self.sortby)
             sys.stderr.write("{}: {} candidate cell types\n".format(c.outfile, nc))
         
     def usage(self, what=None):
-        sys.stdout.write("""cellClassifier.py - Classify cells based on highly expressed genes.
+        sys.stdout.write("""cellClassifier.py - Classify cells on the basis of marker genes.
 """)
         if what == "cellranger":
             sys.stdout.write("""
-* CellRanger mode. In this mode, the program assumes that the input is a 
+CellRanger mode. In this mode, the program assumes that the input is a 
 differential_expression.csv file produced by cellranger. The file is comma-delimited
 with two columns for gene identifier and gene name, followed by three columns for
 each cluster.
@@ -368,9 +435,9 @@ with a P-value and a match score. Use `-h db' for a description of the format of
 the database file, and `-h output' for a description of the program's output.
 
 A signature matches if the P-value returned by the enrichment test is less than 0.05 
-(this limit can be changed with the -p option). The test uses the number of genes in the database 
-as the total number of genes, but this can be changed with -n. Cell types that 
-match are printed to standard output (or to the file specified with the -o option). 
+(this limit can be changed with the -p option). The test uses the number of genes in 
+the database as the total number of genes, but this can be changed with -n. Cell types 
+that  match are printed to standard output, or to the file specified with the -o option. 
 
 `genesfile' is assumed to contain one gene identifier per line, or to be a 
 tab-delimited file with identifiers in the first column. A different column can be 
@@ -379,18 +446,31 @@ specified with the -c option or using the syntax filename:column.
 If -X is specified, the program switches to cellranger mode, suitable for parsing
 differential expression files produced by cellranger. Use -h cellranger for details.
 
+If -S is specified, the program switches to seurat mode, suitable for parsing
+differential expression files produced by Seurat. Use -h seurat for details.
+
 Options:
 
-  -o O   | Write output to file O (default: standard output).
-  -p P   | Set the P-value threshold for signature matching to P (default: {}).
-  -c C   | Column containing gene names in input file (default: 1).
-  -n N   | Total number of genes considered (default: number of genes in database).
-  -s     | Sort results by score rather than P-value.
-  -X     | Enable cellranger mode. See -h cellranger.
-  -Xp P  | Set P-value threshold for cellranger file to P (default: {}).
-  -Xfc F | Set fold change threshold for cellranger file to F (default: {}).
+  -h [W]  | This usage message. If W is `db', `output', `cellranger', or `seurat',
+            show the corresponding help page.
+  -o O    | Write output to file O (default: standard output).
+  -p P    | Set the P-value threshold for signature matching to P (default: {}).
+  -c C    | Column containing gene names in input file (default: 1).
+  -n N    | Total number of genes considered (default: number of genes in database).
+  -s      | Sort results by score rather than P-value.
 
-""".format(self.pval, self.Xpval, self.Xfc))
+  -X      | Enable cellranger mode. See -h cellranger.
+  -Xp P   | Set P-value threshold for cellranger file to P (default: {}).
+  -Xfc F  | Set fold change threshold for cellranger file to F (default: {}).
+  -Xtop T | Only keep the top T genes for each cluster in cellranger file (default: no limit).
+
+  -S      | Enable seurat mode. See -h seurat.
+  -Sp P   | Set P-value threshold for seurat file to P (default: {}).
+  -Sfc F  | Set fold change threshold for seurat file to F (default: {}).
+  -Stop T | Only keep the top T genes for each cluster in seurat file (default: no limit).
+  -Spct C | Only keep genes that are present in at least C% of cells (default: {}).
+
+            """.format(self.pval, self.Xpval, self.Xfc, self.pval, self.Xpval, self.Xfc, self.Spct))
         sys.stdout.write("""(c) 2019, A. Riva, ICBR Bioinformatics Core, University of Florida.
 
 """)                 
